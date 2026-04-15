@@ -340,7 +340,7 @@ function parseData(repoName) {
   const db = getDb();
   const inserted = { communities: 0, processes: 0, process_steps: 0 };
 
-const communitiesFile = join(tempDir, "communities.json");
+  const communitiesFile = join(tempDir, "communities.json");
   if (existsSync(communitiesFile)) {
     const raw = parseGitNexusJson(readFileSync(communitiesFile, "utf-8"));
     const data = parseMarkdownTable(raw);
@@ -350,9 +350,10 @@ INSERT OR REPLACE INTO gitnexus_entity
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
 
     for (const item of data) {
-      const effectiveLabel = item.heuristicLabel && item.heuristicLabel.trim() !== "" 
-        ? item.heuristicLabel 
-        : item.label;
+      const effectiveLabel =
+        item.heuristicLabel && item.heuristicLabel.trim() !== ""
+          ? item.heuristicLabel
+          : item.label;
       stmt.run(
         `community_${item.id}`,
         item.id,
@@ -404,7 +405,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     }
   }
 
-const processesFile = join(tempDir, "processes.json");
+  const processesFile = join(tempDir, "processes.json");
   if (existsSync(processesFile)) {
     const raw = parseGitNexusJson(readFileSync(processesFile, "utf-8"));
     const data = parseMarkdownTable(raw);
@@ -522,7 +523,7 @@ GROUP BY heuristic_label
 /**
  * Process 在 GitNexus 里 gitnexus_label 常为流程名(A→B)，与 Community 的类名(如 Clustering)不一致。
  * 统计：精确匹配该 Label 的 Process ∪ 与同 Label 下任一 Community 在 jump_targets 上共享文件路径的 Process（去重）。
-*/
+ */
 function countProcessesForLabelUnion(db, labelName) {
   const r = db
     .prepare(
@@ -637,7 +638,7 @@ function getLabel(name) {
 function listModulesForLabel(labelName) {
   if (!labelName) return { status: "error", message: "Label name required" };
   const db = getDb();
-const rows = db
+  const rows = db
     .prepare(
       `
 SELECT j.file_path, j.line_number, j.target_type, j.confidence, j.feature_id,
@@ -657,7 +658,7 @@ ORDER BY f.gitnexus_type ASC, (j.line_number IS NULL), j.line_number ASC
     seen.add(key);
     targets.push(r);
   }
-let communities = [];
+  let communities = [];
   let processes = [];
   if (targets.length === 0) {
     communities = db
@@ -708,7 +709,7 @@ ORDER BY gitnexus_step_count DESC, id ASC
     )
     .all(labelName);
 
-const linkedRows = db
+  const linkedRows = db
     .prepare(
       `
 SELECT DISTINCT fproc.id, fproc.gitnexus_id, fproc.gitnexus_label, fproc.gitnexus_step_count,
@@ -847,28 +848,28 @@ function saveProcessAnnotation(entityId, annotation) {
 
 /** 下一条待 LLM 标注的 Process（llm_feature_name 为空）；可选按 gitnexus_label 过滤 */
 function getNextUnannotatedProcess(labelFilter) {
-const db = getDb();
+  const db = getDb();
   const hasLabel = labelFilter && String(labelFilter).trim() !== "";
   const row = hasLabel
     ? db
-      .prepare(
-        `SELECT * FROM gitnexus_entity
+        .prepare(
+          `SELECT * FROM gitnexus_entity
 WHERE gitnexus_type = 'process'
 AND (llm_feature_name IS NULL OR TRIM(llm_feature_name) = '')
 AND heuristic_label = ?
 ORDER BY gitnexus_step_count DESC, id ASC
 LIMIT 1`,
-      )
-      .get(labelFilter)
+        )
+        .get(labelFilter)
     : db
-      .prepare(
-        `SELECT * FROM gitnexus_entity
+        .prepare(
+          `SELECT * FROM gitnexus_entity
 WHERE gitnexus_type = 'process'
 AND (llm_feature_name IS NULL OR TRIM(llm_feature_name) = '')
 ORDER BY COALESCE(heuristic_label,''), gitnexus_step_count DESC, id ASC
 LIMIT 1`,
-      )
-      .get();
+        )
+        .get();
   if (!row) {
     db.close();
     return {
@@ -1014,30 +1015,37 @@ function clearSyncedFeatures() {
   };
 }
 
-
 /** 导出 communities 为 JSON，供 OpenCode/LLM 分析使用 */
 function exportForEnrichment() {
   const db = getDb();
-  const communities = db.prepare(`
+  const communities = db
+    .prepare(
+      `
     SELECT id, gitnexus_id, heuristic_label as label, gitnexus_symbol_count as symbolCount
     FROM gitnexus_entity
     WHERE gitnexus_type = 'community'
     ORDER BY gitnexus_symbol_count DESC
     LIMIT 50
-  `).all();
+  `,
+    )
+    .all();
 
   const result = [];
   for (const comm of communities) {
-    const targets = db.prepare(`
+    const targets = db
+      .prepare(
+        `
       SELECT file_path, line_number FROM jump_targets
       WHERE feature_id = ? ORDER BY line_number LIMIT 10
-    `).all(comm.id);
+    `,
+      )
+      .all(comm.id);
 
     result.push({
       id: comm.id,
       original_label: comm.label,
       symbolCount: comm.symbolCount,
-      sampleFiles: targets.map(t => `${t.file_path}:${t.line_number}`),
+      sampleFiles: targets.map((t) => `${t.file_path}:${t.line_number}`),
     });
   }
 
@@ -1045,11 +1053,97 @@ function exportForEnrichment() {
   return { status: "success", communities: result, count: result.length };
 }
 
+function exportProcessesForEnrichment() {
+  const db = getDb();
+  const processes = db
+    .prepare(
+      `
+    SELECT id, gitnexus_id, gitnexus_label, heuristic_label, gitnexus_step_count
+    FROM gitnexus_entity
+    WHERE gitnexus_type = 'process'
+    ORDER BY heuristic_label, gitnexus_step_count DESC, id ASC
+  `,
+    )
+    .all();
+
+  const result = [];
+  for (const proc of processes) {
+    const steps = db
+      .prepare(
+        `
+      SELECT step_index, symbol_id, file_path, line_number
+      FROM process_steps
+      WHERE feature_id = ?
+      ORDER BY step_index ASC
+    `,
+      )
+      .all(proc.id);
+
+    const targets = db
+      .prepare(
+        `
+      SELECT file_path, line_number, target_type
+      FROM jump_targets
+      WHERE feature_id = ?
+      ORDER BY (line_number IS NULL), line_number ASC
+      LIMIT 10
+    `,
+      )
+      .all(proc.id);
+
+    result.push({
+      id: proc.id,
+      gitnexus_id: proc.gitnexus_id,
+      original_label: proc.gitnexus_label,
+      heuristic_label: proc.heuristic_label,
+      stepCount: proc.gitnexus_step_count,
+      steps: steps.map((s) => ({
+        step: s.step_index,
+        symbol: s.symbol_id,
+        file: s.file_path,
+        line: s.line_number,
+      })),
+      jumpTargets: targets.map((t) => `${t.file_path}:${t.line_number}`),
+    });
+  }
+
+  db.close();
+  return { status: "success", processes: result, count: result.length };
+}
+
+function importProcessEnrichment(jsonData) {
+  const data = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE gitnexus_entity
+    SET llm_feature_name = ?, llm_feature_description = ?, llm_core_logic_summary = ?
+    WHERE id = ?
+  `);
+  let updated = 0;
+
+  for (const item of data) {
+    if (item.id && item.llm_feature_name) {
+      stmt.run(
+        item.llm_feature_name,
+        item.llm_feature_description || null,
+        item.llm_core_logic_summary || null,
+        item.id,
+      );
+      updated++;
+    }
+  }
+
+  db.close();
+  return { status: "success", message: `Updated ${updated} processes` };
+}
+
 /** 批量更新 heuristic_label（从 OpenCode/LLM 结果导入） */
 function importEnrichment(jsonData) {
-  const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+  const data = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
   const db = getDb();
-  const stmt = db.prepare(`UPDATE gitnexus_entity SET heuristic_label = ? WHERE id = ?`);
+  const stmt = db.prepare(
+    `UPDATE gitnexus_entity SET heuristic_label = ? WHERE id = ?`,
+  );
   let updated = 0;
 
   for (const item of data) {
@@ -1104,8 +1198,8 @@ function main() {
   }
   args = filtered;
   setRepo(repoArg);
-if (args.length < 1) {
-  console.log(`
+  if (args.length < 1) {
+    console.log(`
 Feature Navigation Tool (fn)
 ============================
 Usage: fn [-r <repo>] <command> [args...]
@@ -1145,8 +1239,8 @@ Workflow:
 
 Install: cd ~/.agents/skills/feature-nav/scripts && npm link
   `);
-  process.exit(1);
-}
+    process.exit(1);
+  }
 
   const cmd = args[0];
   const aliases = {
@@ -1218,8 +1312,14 @@ Install: cd ~/.agents/skills/feature-nav/scripts && npm link
       case "enrich":
         result = exportForEnrichment();
         break;
+      case "enrich-processes":
+        result = exportProcessesForEnrichment();
+        break;
       case "import-enrich":
         result = importEnrichment(args[1] || "[]");
+        break;
+      case "import-process-enrich":
+        result = importProcessEnrichment(args[1] || "[]");
         break;
       default:
         result = { status: "error", message: `Unknown command: ${cmd}` };
