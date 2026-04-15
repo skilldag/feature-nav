@@ -47,4 +47,4 @@ fn save-process <id> '{"feature_name":"...","description":"..."}'
 
 ## Neovim 插件
 
-配套 Neovim 插件：[feature-nav.nvim](https://github.com/your-github/feature-nav.nvim)
+配套 Neovim 插件：[feature-nav.nvim](https://github.com/skilldag/feature-nav.nvim)
