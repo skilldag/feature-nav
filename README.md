@@ -10,6 +10,16 @@ npm install
 npm link
 ```
 
+## 配置
+
+```bash
+# 可选：自定义数据目录
+export FEATURE_NAV_DB=/custom/db/path
+
+# 可选：自定义工具路径
+export FEATURE_NAV_TOOL=/custom/path/feature-tool.js
+```
+
 ## 快速开始
 
 ```bash
@@ -38,6 +48,12 @@ fn save-process <id> '{"feature_name":"...","description":"..."}'
 | `process-next` | 下一条待标注 process |
 | `save-label`   | 保存 label 标注      |
 | `save-process` | 保存 process 标注    |
+
+## 测试
+
+```bash
+npm test
+```
 
 ## 标注状态
 
