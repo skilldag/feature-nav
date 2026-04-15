@@ -1,0 +1,23 @@
+{
+  "name": "feature-nav",
+  "version": "1.0.0",
+  "description": "Feature Navigation CLI - 基于 GitNexus 的代码功能导航工具",
+  "main": "feature-tool.js",
+  "bin": {
+    "fn": "./feature-tool.js",
+    "feature-nav": "./feature-tool.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "gitnexus",
+    "feature-navigation",
+    "code-analysis"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^12.8.0"
+  }
+}

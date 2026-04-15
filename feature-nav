@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Wrapper script for feature-nav command
+# This should be installed in PATH (e.g., /usr/local/bin or ~/.local/bin)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/feature-nav.sh" "$@"
